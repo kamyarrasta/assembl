@@ -49,18 +49,18 @@ def upgrade(pyramid_env):
                 db, rcpt_email, rcpt_name)
             db.add(EmailRecipient(email=mail, account=account))
 
-    # with context.begin_transaction():
-    #     op.drop_column('email', u'sender')
-    #     op.drop_column('email', u'recipient')
+    with context.begin_transaction():
+        op.drop_column('email', u'sender')
+        op.drop_column('email', u'recipients')
 
 
 def downgrade(pyramid_env):
-    # with context.begin_transaction():
-    #     op.add_column('email', sa.Column(u'sender', sa.Unicode(1024)))
-    #     op.add_column('email', sa.Column(u'recipient', sa.Unicode(1024)))
+    with context.begin_transaction():
+        op.add_column('email', sa.Column(u'sender', sa.Unicode(1024)))
+        op.add_column('email', sa.Column(u'recipients', sa.Unicode(1024)))
     SQLAlchemyBaseModel.metadata.bind = op.get_bind()
     with transaction.manager:
-        for mail in db.query('Email').all():
+        for mail in db.query(Email).all():
             sender = mail.sender
             mail.legacy_sender = formataddr(
                 (sender.profile.name, sender.email))
