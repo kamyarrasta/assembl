@@ -134,8 +134,8 @@ class AgentProfile(SQLAlchemyBaseModel):
         args = {'s': str(size)}
         if default:
             args['d'] = default
-        gravatar_url = "http://www.gravatar.com/avatar/%s?%s" % (
-            hashlib.md5(email.lower()).hexdigest(), urllib.urlencode(args))
+        gravatar_url = "http://www.gravatar.com/avatar/%s?s=%d&amp;d=%s" % (
+            hashlib.md5(email.lower()).hexdigest(), size, urllib.quote(default))
         return gravatar_url
 
     def serializable(self, use_email=None):
