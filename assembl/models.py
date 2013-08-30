@@ -22,6 +22,7 @@ from .source.models import (
     Mailbox,
     Post,
     Email,
+    EmailRecipient
 )
 from .synthesis.models import (
     Discussion,

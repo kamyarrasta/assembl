@@ -5,6 +5,7 @@ import smtplib
 from email.header import decode_header as decode_email_header, Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.utils import parseaddr
 
 from pyramid.threadlocal import get_current_registry
 
@@ -12,7 +13,8 @@ from datetime import datetime
 from time import mktime
 from imaplib2 import IMAP4_SSL, IMAP4
 
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy.orm import (
+    relationship, backref, deferred)
 
 from sqlalchemy import (
     Column,
@@ -28,7 +30,9 @@ from sqlalchemy import (
 )
 
 from assembl.source.models.generic import Source, Content
+from assembl.lib.sqla import Base as SQLAlchemyBaseModel
 from assembl.db import DBSession
+from assembl.auth.models import EmailAccount
 
 
 
@@ -125,9 +129,12 @@ class Mailbox(Source):
                 new_in_reply_to
             )
 
+            sender_name, sender_email = parseaddr(
+                email_header_to_unicode(parsed_email.get('From')))
+            sender = EmailAccount.get_or_make_profile(DBSession, sender_email, sender_name)
+
             new_email = Email(
-                recipients=email_header_to_unicode(parsed_email['To']),
-                sender=email_header_to_unicode(parsed_email['From']),
+                sender=sender,
                 subject=email_header_to_unicode(parsed_email['Subject']),
                 creation_date=datetime.utcfromtimestamp(
                     mktime(
@@ -142,6 +149,17 @@ class Mailbox(Source):
                 full_message=str(parsed_email).decode('ISO-8859-1')
             )
 
+            def add_recipients(header_name):
+                recipients = parsed_email.get_all(header_name, [])
+                for r in recipients:
+                    rcpt_name, rcpt_email = parseaddr(
+                        email_header_to_unicode(r))
+                    rcpt = EmailAccount.get_or_make_profile(
+                        DBSession, rcpt_email, rcpt_name)
+                    DBSession.add(EmailRecipient(
+                        email=new_email, account=rcpt, type=header_name))
+            for h in ('To', 'Cc', 'Bcc', 'resent-to', 'resent-cc'):
+                add_recipients(h)
             return new_email
 
         if len(email_ids):
@@ -291,8 +309,10 @@ class Email(Content):
         ondelete='CASCADE'
     ), primary_key=True)
 
-    recipients = Column(Unicode(1024), nullable=False)
-    sender = Column(Unicode(1024), nullable=False)
+    sender_id = Column(Integer, ForeignKey('email_account.id'))
+    sender = relationship(EmailAccount)
+    legacy_sender = deferred(Column('sender', Unicode(1024)))
+    legacy_recipients = deferred(Column('recipients', Unicode(1024)))
     subject = Column(Unicode(1024), nullable=False)
     body = Column(UnicodeText)
 
@@ -425,3 +445,14 @@ class Email(Content):
             self.sender.encode('utf-8'), 
             self.recipients.encode('utf-8')
         )
+
+class EmailRecipient(SQLAlchemyBaseModel):
+    __tablename__ = 'email_recipient'
+    id = Column(Integer, primary_key=True)
+    account_id = Column(Integer, ForeignKey('email_account.id'))
+    account = relationship(EmailAccount)
+    email_id = Column(Integer, ForeignKey('email.id'))
+    email = relationship(Email, backref="recipient_rels")
+    type = Column(String(10), default="To")
+
+
