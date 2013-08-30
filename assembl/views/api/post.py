@@ -42,7 +42,7 @@ def __post_to_json_structure(post):
     data["parentId"] = post.parent_id
     data["subject"] = post.content.subject
     data["body"] = post.content.body
-    data["authorName"] = post.content.sender
+    data["creator"] = post.content.sender.serialize_profile()
     #FIXME
     data["avatarUrl"] = None
     data["date"] = post.content.creation_date.isoformat()

@@ -432,17 +432,22 @@ class Email(Content):
         serializable_content = super(Email, self).serializable()
 
         serializable_content.update({
-            "sender": self.sender,
-            "recipients": self.recipients,
+            "sender": self.sender.serialize_profile(),
             "subject": self.subject,
             "body": self.body,
         })
+        recipient_relns = list(self.recipient_relns)
+        for rtype in ('to', 'cc', 'resent-to', 'resent-cc'):
+            r_of_type = [rr for rr in recipient_relns if rr.type == rtype]
+            if r_of_type:
+                serializable_content[rtype] = [
+                    rr.account.serialize_profile() for rr in r_of_type]
 
         return serializable_content
 
     def __repr__(self):
         return "<Email '%s to %s'>" % (
-            self.sender.encode('utf-8'), 
+            self.sender.email.encode('utf-8'), 
             self.recipients.encode('utf-8')
         )
 
@@ -452,7 +457,7 @@ class EmailRecipient(SQLAlchemyBaseModel):
     account_id = Column(Integer, ForeignKey('email_account.id'))
     account = relationship(EmailAccount)
     email_id = Column(Integer, ForeignKey('email.id'))
-    email = relationship(Email, backref="recipient_rels")
+    email = relationship(Email, backref="recipient_relns")
     type = Column(String(10), default="To")
 
 

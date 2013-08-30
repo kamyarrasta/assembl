@@ -138,6 +138,17 @@ class AgentProfile(SQLAlchemyBaseModel):
             hashlib.md5(email.lower()).hexdigest(), urllib.urlencode(args))
         return gravatar_url
 
+    def serializable(self, use_email=None):
+        r = {
+            'type': "AgentProfile",
+            'id': self.id,
+            'email': use_email or self.preferred_email(),
+            'name': self.name or self.display_name()
+        }
+        if self.user:
+            r['username'] = self.user.username
+        return r
+
 
 class AgentAccount(SQLAlchemyBaseModel):
     __abstract__ = True
@@ -162,6 +173,9 @@ class EmailAccount(AgentAccount):
     def display_name(self):
         if self.verified:
             return self.email
+
+    def serialize_profile(self):
+        return self.profile.serializable(self.email)
 
     @staticmethod
     def get_or_make_profile(session, email, name=None):
