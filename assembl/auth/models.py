@@ -142,11 +142,14 @@ class AgentProfile(SQLAlchemyBaseModel):
         r = {
             'type': "AgentProfile",
             'id': self.id,
-            'email': use_email or self.preferred_email(),
             'name': self.name or self.display_name()
         }
+        if use_email:
+            r['email'] = use_email
         if self.user:
             r['username'] = self.user.username
+            if not use_email:
+                r['email'] = self.user.get_preferred_email()
         return r
 
 
@@ -325,7 +328,7 @@ class User(SQLAlchemyBaseModel):
     def display_name(self):
         if self.username:
             return self.username
-        return self.profile.display_name
+        return self.profile.display_name()
 
     def __repr__(self):
         return "<User '%s'>" % self.username
