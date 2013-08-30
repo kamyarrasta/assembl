@@ -63,7 +63,7 @@ class ApiTest(BaseTest):
                 "avatarUrl": "http://www.gravatar.com/avatar/39cbf87dae724f2cb64e92accdd4d349.jpg"},
             "text": "Let's lower taxes to fav",
             "avatarUrl": None,
-            "authorName": None,
+            "creator": None,
             "idPost": None,
             "creationDate": 1376573216160,
             "id": "38ebdaac-c0f0-408e-8904-7f343851fc61"
