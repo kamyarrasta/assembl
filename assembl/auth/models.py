@@ -235,7 +235,7 @@ class IdentityProviderAccount(AgentAccount):
             name = self.username
         else:
             name = self.userid
-        return ":".join((self.provider.type, name))
+        return ":".join((self.provider.provider_type, name))
 
 
 class User(SQLAlchemyBaseModel):
