@@ -23,6 +23,8 @@ function(Backbone, _, $, app, Synthesis, SynthesisIdeaView){
 
             this.ideas.on('reset', this.render, this);
             this.ideas.on('change:parentId change:inSynthesis', this.render, this);
+
+            this.model.on('reset', this.render, this);
         },
 
         /**
@@ -52,8 +54,10 @@ function(Backbone, _, $, app, Synthesis, SynthesisIdeaView){
             app.off('synthesisPanel:close');
 
             var list = document.createDocumentFragment(),
-                data = { collapsed: this.collapsed, title: this.model.get('title') },
-                ideas = this.ideas.where({inSynthesis: true});
+                data = this.model.toJSON(),
+                ideas = this.ideas.getInSynthesisIdeas();
+
+            data.collapsed = this.collapsed;
 
             _.each(ideas, function(idea){
                 var ideaView = new SynthesisIdeaView({model:idea});
@@ -66,8 +70,14 @@ function(Backbone, _, $, app, Synthesis, SynthesisIdeaView){
             return this;
         },
 
+        /**
+         * 
+         */
         events: {
             'blur #synthesisPanel-title': 'onTitleBlur',
+            'blur #synthesisPanel-introduction': 'onIntroductionBlur',
+            'blur #synthesisPanel-conclusion': 'onConclusionBlur',
+
             'click #synthesisPanel-closeButton': 'closePanel',
             'click #synthesisPanel-publishButton': 'publish'
         },
@@ -84,7 +94,23 @@ function(Backbone, _, $, app, Synthesis, SynthesisIdeaView){
          */
         onTitleBlur: function(ev){
             var title = app.stripHtml(ev.currentTarget.innerHTML);
-            this.model.set('title', title);
+            this.model.set('subject', title);
+        },
+
+        /**
+         * 
+         */
+        onIntroductionBlur: function(ev){
+            var introduction = app.stripHtml(ev.currentTarget.innerHTML);
+            this.model.set("introduction", introduction);
+        },
+
+        /**
+         * 
+         */
+        onConclusionBlur: function(ev){
+            var conclusion = app.stripHtml(ev.currentTarget.innerHTML);
+            this.model.set('conclusion', conclusion);
         },
 
         /**
@@ -103,8 +129,30 @@ function(Backbone, _, $, app, Synthesis, SynthesisIdeaView){
          */
         publish: function(){
             var ok = confirm("Do you want to publish the synthesis?");
-            if( ok ) ok = confirm("Are you sure? Do you really want to publish this?");
-            if( ok ) ok = confirm("Published!");
+            if( ok ){
+                this._publish();
+            }
+        },
+
+        /**
+         * Publishes the synthesis
+         */
+        _publish: function(){
+            var json = this.model.toJSON(),
+                data = {},
+                url = app.getApiUrl('posts');
+
+            data.message = app.format("Subject: {0} \n Introduction: {1} \n Conclusion: {2}", json.subject, json.introduction, json.conclusion);
+
+            $.ajax({
+                type: "post",
+                data: JSON.stringify(data),
+                contentType: 'application/json',
+                url: url,
+                success: function(){
+                    alert("Synthesis published!");
+                }
+            });
         }
     });
 

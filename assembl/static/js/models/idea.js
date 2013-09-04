@@ -1,4 +1,4 @@
-define(['backbone', 'models/segment', 'app'], function(Backbone, Segment, app){
+define(['backbone','underscore', 'models/segment', 'app'], function(Backbone, _, Segment, app){
     'use strict';
 
     /**
@@ -31,7 +31,7 @@ define(['backbone', 'models/segment', 'app'], function(Backbone, Segment, app){
             shortTitle: 'New idea',
             longTitle: 'Please add a description',
             total: 0,
-            isOpen: false,
+            isOpen: true,
             hasCheckbox: true,
             featured: false,
             active: false,
@@ -45,7 +45,7 @@ define(['backbone', 'models/segment', 'app'], function(Backbone, Segment, app){
          * @param {Segment} [segment=null]
          */
         addChild: function(idea, segment){
-            this.collection.add(idea, { success: onSuccess });
+            this.collection.add(idea);
 
             if( this.isDescendantOf(idea) ){
                 this.set('parentId', null);
@@ -216,7 +216,25 @@ define(['backbone', 'models/segment', 'app'], function(Backbone, Segment, app){
          * The model
          * @type {IdeaModel}
          */
-        model: IdeaModel
+        model: IdeaModel,
+
+        /**
+         * Returns the ideas to compose the synsthesis panel
+         */
+        getInSynthesisIdeas: function(){
+            var ideas = this.where({inSynthesis: true}),
+                result = [];
+
+            _.each(ideas, function(idea){
+                console.log( idea.getSynthesisLevel() );
+                if( idea.getSynthesisLevel() === 0 ){
+                    result.push( idea );
+                }
+            });
+
+            return result;
+        }
+
     });
 
     return {

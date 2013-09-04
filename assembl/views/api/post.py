@@ -1,6 +1,6 @@
 import json
 import os
-
+import transaction
 
 from math import ceil
 from cornice import Service
@@ -16,9 +16,11 @@ from assembl.db import DBSession
 from assembl.auth import P_READ, P_ADD_POST
 from assembl.source.models import Post
 from assembl.synthesis.models import Discussion, Source, Content, Extract, Idea
+from assembl.auth.models import ViewPost, User
 from . import acls
 
 from sqlalchemy.orm import aliased
+from sqlalchemy.orm.exc import NoResultFound
 
 
 posts = Service(name='posts', path=API_PREFIX + '/posts',
@@ -89,6 +91,13 @@ def get_posts(request):
     if not discussion:
         raise HTTPNotFound(_("No discussion found with id=%s" % discussion_id))
 
+    # TODO: import new messages somewhere else.
+    # This is probably going to slow things down a bit, but we need the latest
+    # data all the time for testing purposes.
+    discussion.import_from_sources()
+
+    user_id = authenticated_userid(request)
+
     DEFAULT_PAGE_SIZE = 25
     page_size = DEFAULT_PAGE_SIZE
 
@@ -116,9 +125,27 @@ def get_posts(request):
     data["page"] = page
 
     #Rename "inbox" to "unread", the number of unread messages for the current user.
-    data["inbox"] = discussion.total_posts()
+    no_of_messages_viewed_by_user = DBSession.query(ViewPost).join(
+        Post,
+        Content,
+        Source
+    ).filter(
+        Source.discussion_id == discussion_id,
+        Content.source_id == Source.id,
+        ViewPost.actor_id == user_id,
+    ).count() if user_id else 0
+
+    no_of_posts_to_discussion = DBSession.query(Post).join(
+        Content,
+        Source,
+    ).filter(
+        Source.discussion_id == discussion_id,
+        Content.source_id == Source.id,
+    ).count()
+
+    data["inbox"] = no_of_posts_to_discussion - no_of_messages_viewed_by_user
     #What is "total", the total messages in the current context?
-    data["total"] = discussion.total_posts()
+    data["total"] = discussion.posts().count()
     data["maxPage"] = max(1, ceil(float(data["total"])/page_size))
     #TODO:  Check if we want 1 based index in the api
     data["startIndex"] = (page_size * page) - (page_size-1)
@@ -161,11 +188,33 @@ JOIN post AS root_posts ON (root_posts.content_id = content.id) JOIN post ON ((p
         posts = posts.limit(page_size).offset(data['startIndex']-1)
 
     for post in posts:
-        post_data.append(__post_to_json_structure(post))
+        serializable_post = __post_to_json_structure(post)
+        post_data.append(serializable_post)
+
         if not root_idea_id:
             for descendant in post.get_descendants():
                 post_data.append(__post_to_json_structure(descendant))
     data["posts"] = post_data
+
+    if user_id:
+        for serializable_post in data['posts']:
+            try:
+                DBSession.query(ViewPost).filter_by(
+                    actor_id=user_id,
+                    post_id=serializable_post['id']
+                ).one()
+                serializable_post['read'] = True
+
+            except NoResultFound:
+                serializable_post['read'] = False
+                if root_post_id:
+                    with transaction.manager:
+                        viewed_post = ViewPost(
+                            actor_id=user_id,
+                            post_id=serializable_post['id']
+                        )
+
+                        DBSession.add(viewed_post)
 
     return data
 
@@ -177,26 +226,28 @@ def create_post(request):
     """
     request_body = json.loads(request.body)
     user_id = authenticated_userid(request)
+    user = DBSession.query(User).filter_by(id=user_id).one()
 
     message = request_body.get('message', None)
     reply_id = request_body.get('reply_id', None)
+    subject = request_body.get('subject', None)
 
     if not user_id:
         raise HTTPUnauthorized()
-
-    user = DBSession.query(User).get(user_id)
 
     if not message:
         raise HTTPUnauthorized()
 
     if reply_id:
         post = DBSession.query(Post).get(int(reply_id))
-        post.content.reply(user, post_body['message'])
+        post.content.reply(user, message)
 
         return { "ok": True }
 
     discussion_id = request.matchdict['discussion_id']
     discussion = DBSession.query(Discussion).get(discussion_id)
+
+    subject = subject or discussion.topic
 
     if not discussion:
         raise HTTPNotFound(
@@ -204,6 +255,6 @@ def create_post(request):
         )
 
     for source in discussion.sources:
-        source.send(user, message)
+        source.send(user, message, subject=subject)
 
     return { "ok": True }

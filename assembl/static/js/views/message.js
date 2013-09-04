@@ -1,5 +1,5 @@
-define(['backbone', 'underscore', 'moment', 'app', 'models/message'],
-function(Backbone, _, Moment, app, Message){
+define(['backbone', 'underscore', 'moment', 'ckeditor', 'app', 'models/message'],
+function(Backbone, _, Moment, ckeditor, app, Message){
     'use strict';
 
     var MIN_TEXT_TO_TOOLTIP = 5,
@@ -86,6 +86,51 @@ function(Backbone, _, Moment, app, Message){
         },
 
         /**
+         *  Opens the reply box and removes the reply button 
+         */
+        openReplyBox: function(){
+            this.$('.message-replaybox-openbtn').hide();
+            this.$('.message-replybox').show();
+        },
+
+        /**
+         *  Closes the reply box and shows the reply button 
+         */
+        closeReplyBox: function(){
+            this.$('.message-replaybox-openbtn').show();
+            this.$('.message-replybox').hide();
+        },
+
+        /**
+         * Sends the message to the server
+         */
+        sendMessage: function(ev){
+            var btn = $(ev.currentTarget),
+                url = app.getApiUrl('posts'),
+                data = {},
+                that = this;
+
+            data.message = this.$('.message-textarea').val();
+            if( this.model.get('id') ){
+                data.reply_id = this.model.get('id');
+            }
+
+            btn.text('Sending...');
+
+            $.ajax({
+                type: "post",
+                data: JSON.stringify(data),
+                contentType: 'application/json',
+                url: url,
+                success: function(){
+                    btn.text('Send');
+                    that.closeReplyBox();
+                }
+            });
+
+        },
+
+        /**
          * Shows the options to the selected text
          * @param  {Number} x
          * @param  {Number} y
@@ -112,6 +157,11 @@ function(Backbone, _, Moment, app, Message){
         events: {
             'click .iconbutton': 'onIconbuttonClick',
             'click .message-title': 'onIconbuttonClick',
+
+            //
+            'click .message-replaybox-openbtn': 'openReplyBox',
+            'click .message-cancelbtn': 'closeReplyBox',
+            'click .message-sendbtn': 'sendMessage',
 
             //
             'mousedown .message-body': 'startSelection',

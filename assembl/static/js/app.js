@@ -316,6 +316,20 @@ function($, _, ckeditor, User, Moment){
         },
 
         /**
+         * Format string function
+         * @param {string} string
+         * @param {string} ...
+         * @return {string}
+         */
+        format: function(str){
+            var args = [].slice.call(arguments, 1);
+
+            return str.replace(/\{(\d+)\}/g, function(a,b){
+                return typeof args[b] != 'undefined' ? args[b] : a;
+            });
+        },
+
+        /**
          * Format date
          * @param {Date|timestamp} date
          * @param {string} [format=app.dateFormat] The format
@@ -480,7 +494,7 @@ function($, _, ckeditor, User, Moment){
          * @return {String} The new string without html tags
          */
         stripHtml: function(html){
-            return html.replace(/(<([^>]+)>)/ig,"");
+            return html ? html.replace(/(<([^>]+)>)/ig,"") : html;
         },
 
         /**
@@ -493,21 +507,19 @@ function($, _, ckeditor, User, Moment){
                 return;
             }
 
-            var parent = dropdown.parent(),
-                onMouseleave = function(){
-                    parent
-                        .removeClass('is-open')
-                        .off('mouseleave', onMouseleave);
-                };
+            var parent = dropdown.parent();
+
+            var onMouseLeave = function(ev){
+                parent.removeClass('is-open');
+            };
 
             if( parent.hasClass('is-open') ){
-                onMouseleave();
+                onMouseLeave();
                 return;
             }
 
-            parent
-                .addClass('is-open')
-                .on('mouseleave', onMouseleave);
+            parent.addClass('is-open');
+            app.body.one('click', onMouseLeave);
         },
 
         /**

@@ -40,11 +40,8 @@ define([
 
     // Synthesis
     app.synthesisPanel = new SynthesisPanel({el: '#synthesisPanel', button: '#button-synthesis', ideas: app.ideaList.ideas });
+    app.synthesisPanel.model.fetch({reset: true});
 
+    // Fetching the ideas
     app.ideaList.ideas.fetch({reset: true});
-
-    app.on('lateralmenu.open', function(){
-        app.messages.hideTooltip();
-    });
-
 });
