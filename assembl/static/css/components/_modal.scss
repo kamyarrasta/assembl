@@ -72,7 +72,9 @@
       color: $white;
       font-size: 14px;
       text-decoration: none;
-      @include border-top-right-radius($borderRadiusM);
+      // @include border-top-right-radius($borderRadiusM);
+      // Not sure how to do this in Bourbon
+      @include border-top-radius($borderRadiusM);
 
       span {
         display: inline-block;
