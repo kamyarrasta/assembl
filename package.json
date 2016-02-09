@@ -24,7 +24,6 @@
   },
   "dependencies": {
     "bourbon": "~4.2.6",
-    "bourbon-libsass": "~1.0.0",
     "bluebird": "^2.9.26",
     "browserify": "^10.2.1",
     "browserify-shim": "^3.8.7",
