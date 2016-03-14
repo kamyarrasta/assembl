@@ -1427,6 +1427,10 @@ Context.prototype = {
       return assembl_locale.split('_')[0];
     },
 
+  _test_set_locale: function(locale){
+    assembl_locale = locale;
+  },
+
   initLocale: function() {
 
     switch (assembl_locale){
